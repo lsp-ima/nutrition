@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>栄養・生化学アドバイザー（パーソナル版）</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  body{font-family:'Helvetica Neue',Arial,sans-serif;margin:0;padding:20px;min-height:100vh;
+    background:url('Japanese_anime_style,_Odaiba,_woman_202606301757.jpeg') no-repeat center center fixed;background-size:cover;
+    display:flex;justify-content:center;align-items:flex-start;}
+  .glass-panel{width:100%;max-width:560px;background:rgba(15,15,25,.72);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    border:1px solid rgba(255,255,255,.2);border-radius:20px;box-shadow:0 20px 40px rgba(0,0,0,.5);overflow:hidden;margin:10px 0;}
+  h2{font-size:18px;margin-top:0;color:#fff;} h3{color:#fff;font-size:15px;margin:22px 0 8px;}
+  .sub{color:#cfd0d6;font-size:13px;line-height:1.6;} .fine{color:#9a9ba3;font-size:11.5px;margin-top:16px;}
+  label{display:block;margin-top:18px;font-size:13px;font-weight:bold;color:#ddd;}
+  input,textarea,select{width:100%;padding:12px;margin-top:8px;box-sizing:border-box;background:rgba(0,0,0,.6);
+    border:1px solid rgba(255,255,255,.3);border-radius:8px;font-size:15px;color:#fff;}
+  input:focus,textarea:focus,select:focus{outline:none;border-color:#ff9a44;box-shadow:0 0 10px rgba(255,154,68,.4);}
+  option{background:#222;color:#fff;}
+  button.action-btn{margin-top:26px;padding:15px;background:linear-gradient(to right,#fc6076,#ff9a44);color:#fff;border:none;border-radius:10px;
+    cursor:pointer;width:100%;font-size:16px;font-weight:bold;box-shadow:0 8px 20px rgba(252,96,118,.4);}
+  .topbar{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;background:rgba(0,0,0,.45);color:#fff;font-weight:bold;font-size:14px;}
+  .logout{background:transparent;border:1px solid rgba(255,255,255,.35);color:#ddd;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;}
+  .tab-container{display:flex;background:rgba(0,0,0,.5);}
+  .tab{flex:1;padding:14px 6px;text-align:center;color:#999;cursor:pointer;border:none;background:transparent;font-size:13.5px;font-weight:bold;outline:none;}
+  .tab.active{color:#fff;background:rgba(255,255,255,.1);border-bottom:3px solid #ff9a44;}
+  .content{padding:26px 30px;display:none;} .content.active{display:block;}
+  .result{margin-top:26px;padding:20px;background:rgba(255,255,255,.96);border-left:4px solid #ff9a44;border-radius:8px;display:none;line-height:1.6;color:#222;font-size:14.5px;}
+  .disc{display:block;margin-top:14px;padding-top:10px;border-top:1px solid #ccc;font-size:12px;color:#666;}
+  .err{color:#ffb3bd;font-size:13px;margin-top:12px;min-height:16px;}
+  .ok-msg{color:#8ff0b0;font-size:13px;margin-top:12px;min-height:16px;}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.25);border-radius:20px;
+    padding:8px 12px;font-size:12.5px;color:#eee;font-weight:normal;margin-top:0;cursor:pointer;width:auto;}
+  .chip input{width:auto;margin:0;}
+  .ptip{background:rgba(255,154,68,.14);border:1px solid rgba(255,154,68,.5);border-radius:10px;padding:12px 14px;color:#ffe9d6;font-size:13px;line-height:1.6;margin-bottom:18px;}
+  .ptip:empty{display:none;} .ptip ul{margin:8px 0 0;padding-left:18px;} .ptip li{margin:4px 0;}
+  .pmatch{display:inline-block;margin-top:8px;background:#fff3e8;color:#c05a1e;border-radius:6px;padding:4px 8px;font-size:12px;font-weight:bold;}
+  .trend .wrow{display:flex;justify-content:space-between;color:#eee;font-size:13px;padding:8px 4px;border-bottom:1px solid rgba(255,255,255,.12);}
+  .trend .wrow .m{color:#a9aab2;} .muted{color:#a9aab2;font-size:13px;}
+  .histlist .hrow{padding:10px 4px;border-bottom:1px solid rgba(255,255,255,.12);}
+  .histlist .q{color:#fff;font-size:13.5px;} .histlist .s{color:#a9aab2;font-size:11.5px;margin-top:3px;}
+</style>
+</head>
+<body>
+
+<!-- ===== ログイン画面 ===== -->
+<div id="loginScreen" class="glass-panel" style="max-width:430px;">
+  <div class="content active" style="display:block;">
+    <h2>パーソナル栄養アドバイザー</h2>
+    <p class="sub">あなた専用の合言葉でログインすると、プロフィール・体重・相談履歴が記録され、あなたに合わせた回答になります。</p>
+    <label>あなたの合言葉</label>
+    <input type="text" id="loginPass" placeholder="購入時にお渡しした合言葉" autocomplete="off">
+    <button class="action-btn" onclick="doLogin()">ログイン / はじめる</button>
+    <div id="loginMsg" class="err"></div>
+    <p class="fine">※合言葉は他人に教えないでください。健康・体重の情報を扱います。</p>
+  </div>
+</div>
+
+<!-- ===== メインアプリ ===== -->
+<div id="app" class="glass-panel" style="display:none;">
+  <div class="topbar">
+    <span id="greet">ようこそ</span>
+    <button class="logout" onclick="doLogout()">ログアウト</button>
+  </div>
+  <div class="tab-container">
+    <button class="tab active" data-tab="ai" onclick="openTab(event,'ai')">AIに相談</button>
+    <button class="tab" data-tab="analysis" onclick="openTab(event,'analysis')">体重を記録</button>
+    <button class="tab" data-tab="profile" onclick="openTab(event,'profile')">プロフィール</button>
+    <button class="tab" data-tab="record" onclick="openTab(event,'record')">記録</button>
+  </div>
+
+  <div id="ai" class="content active">
+    <div id="personalTip" class="ptip"></div>
+    <h2>あなたに合わせて回答します</h2>
+    <label>体の悩みや、栄養について聞きたいこと</label>
+    <textarea id="customQuestion" rows="4" placeholder="例: 食欲が止まらない。脂肪燃焼におすすめのサプリは？更年期でお腹周りが気になる。"></textarea>
+    <button class="action-btn" onclick="askPseudoAI()">質問する</button>
+    <div id="questionResult" class="result"></div>
+  </div>
+
+  <div id="analysis" class="content">
+    <h2>夜と朝の体重を記録・分析</h2>
+    <label>夜の体重 (kg)</label>
+    <input type="number" step="0.1" id="nightWeight" placeholder="例: 70.5">
+    <label>朝の体重 (kg)</label>
+    <input type="number" step="0.1" id="morningWeight" placeholder="例: 70.2">
+    <button class="action-btn" onclick="analyze()">記録して分析</button>
+    <div id="analysisResult" class="result"></div>
+  </div>
+
+  <div id="profile" class="content">
+    <h2>プロフィール（回答の個別化に使います）</h2>
+    <label>ニックネーム</label>
+    <input type="text" id="pfNick" placeholder="例: あや">
+    <label>性別</label>
+    <select id="pfSex"><option>女性</option><option>男性</option><option>その他・未回答</option></select>
+    <label>年代</label>
+    <select id="pfAge"><option>10代</option><option>20代</option><option>30代</option><option>40代</option><option>50代</option><option>60代以上</option></select>
+    <label>目標</label>
+    <select id="pfGoal"><option>減量したい</option><option>引き締め・筋肉維持</option><option>健康維持</option></select>
+    <label>当てはまるもの（複数選択可）</label>
+    <div id="pfFlags" class="chips"></div>
+    <label>その他メモ（アレルギー・持病など）</label>
+    <textarea id="pfNotes" rows="2" placeholder="例: 乳製品が苦手 / 貧血ぎみ"></textarea>
+    <button class="action-btn" onclick="saveProfile()">保存する</button>
+    <div id="profileMsg" class="ok-msg"></div>
+  </div>
+
+  <div id="record" class="content">
+    <h2>あなたの記録</h2>
+    <div id="tipPanel" class="ptip"></div>
+    <h3>体重の推移（直近）</h3>
+    <div id="weightTrend" class="trend"></div>
+    <h3>最近の相談</h3>
+    <div id="histList" class="histlist"></div>
+  </div>
+</div>
+
+<script>
+// ===== Supabase 接続（バスケ販売版と同じプロジェクトを流用） =====
+const SUPABASE_URL = "https://zkskoyqitkoqkalmvuhd.supabase.co";
+const SUPABASE_KEY = "sb_publishable_75v_m73Et2R4wVWGS68iNg_R_PZnMaH";
+let sb = null;
+try { sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); }
+catch(e){ console.warn('Supabaseライブラリを読み込めませんでした'); }
+
+let PASS = null, PROFILE = {}, LOGS = [], HISTORY = [];
+
+const DISCLAIMER = "<br><br><span class='disc'>※本ツールは今村雅史の記事＋最新研究に基づく一般的な健康情報で、診断・治療ではありません。持病・服薬中・妊娠授乳中の方や、数値・症状が気になる場合は医師や管理栄養士にご相談ください。</span>";
+
+const FLAG_OPTIONS = [
+  "貧血・鉄不足ぎみ","PMS・生理前の不調","更年期世代","便秘・腸の不調","むくみやすい",
+  "下半身が気になる","睡眠不足ぎみ","甘いもの・間食がやめられない","お酒をよく飲む",
+  "コレステロール/中性脂肪が高め","サプリに関心がある","妊娠・授乳中"
+];
+
+// フラグ → 関連キーワード（該当エントリを少し優先＆メモ表示に使用）
+const FLAG_BOOST = {
+  "貧血・鉄不足ぎみ": ["鉄不足","鉄分","フェリチン","貧血"],
+  "PMS・生理前の不調": ["PMS","生理前","ビタミンB6"],
+  "更年期世代": ["更年期","閉経","エストロゲン"],
+  "便秘・腸の不調": ["腸内環境","便秘","乳酸菌","食物繊維","食の多様性"],
+  "むくみやすい": ["むくみ","カリウム","浮腫"],
+  "下半身が気になる": ["むくみ","内臓脂肪"],
+  "睡眠不足ぎみ": ["睡眠時間","寝不足"],
+  "甘いもの・間食がやめられない": ["食欲","甘いもの","血糖値スパイク","人工甘味料"],
+  "お酒をよく飲む": ["お酒","アルコール"],
+  "コレステロール/中性脂肪が高め": ["コレステロール","LDL"],
+  "サプリに関心がある": ["サプリの組み合わせ","カルニチン"],
+  "妊娠・授乳中": []
+};
+
+// フラグ → あなた向けワンポイント
+const FLAG_TIP = {
+  "貧血・鉄不足ぎみ":"鉄＋ビタミンC（赤身肉・レバー＋レモン等）を意識。コーヒー・お茶は食事と少しずらすと吸収が上がります。",
+  "PMS・生理前の不調":"マグネシウム・ビタミンB6が味方。むくみ対策にカリウム（バナナ・アボカド）も。",
+  "更年期世代":"筋トレ＋タンパク質で筋肉維持を最優先に。内臓脂肪対策として食物繊維と睡眠も大切。",
+  "便秘・腸の不調":"週30種類の植物＋発酵食品＋水分を。冷やご飯（レジスタントスターチ）もおすすめ。",
+  "むくみやすい":"カリウム・マグネシウム・ビタミンB6、そしてタンパク質を。塩分・お酒はほどほどに。",
+  "下半身が気になる":"むくみケア＋筋トレを。食事は塩分と精製糖を控えめに。",
+  "睡眠不足ぎみ":"まず7〜9時間の睡眠を。延ばすだけで食欲・間食が自然と減ります。",
+  "甘いもの・間食がやめられない":"食べる順番（野菜→たんぱく質→糖質）と睡眠で血糖の乱高下を防止。人工甘味料に頼りすぎない。",
+  "お酒をよく飲む":"飲む合間に水を。シメの糖質は翌日に回し、休肝日も設けましょう。",
+  "コレステロール/中性脂肪が高め":"魚・野菜・食物繊維を。糖質の摂りすぎにも注意。数値が高ければ医師に相談を。",
+  "サプリに関心がある":"サプリは不足を補う脇役です。まず食事・睡眠・運動の土台から。",
+  "妊娠・授乳中":"この時期の自己流の減量やサプリは避け、必ず主治医・管理栄養士にご相談ください。"
+};
+
+const knowledgeBase = [
+  {
+    keywords: ["脂肪燃焼", "メカニズム", "分解", "インスリン", "遊離脂肪酸", "プロテインレバレッジ", "タンパク質", "インスリン抵抗性", "筋肉", "肝臓", "オリーブオイル", "食事", "痩せる食事", "脂肪を落とす"],
+    source: "note記事・最新研究まとめ",
+    answer: "脂肪が燃えるには分解と燃焼の2ステップが必要です。まずインスリン値が低い状態で脂肪が遊離脂肪酸に分解され、ミトコンドリアで燃やされますが、カロリーオーバーだと再び脂肪に戻ります。筋肉に問題がある人は低脂肪かつ高タンパク高食物繊維の食事が適しており、肝臓に問題がある人はオリーブオイルなどを含む食事が有効です。総カロリーに対するタンパク質の割合を20パーセント以上に保つプロテインレバレッジが脂肪燃焼を最大化するコツです。"
+  },
+  {
+    keywords: ["褐色脂肪細胞", "加齢", "肥満", "炎症", "有酸素運動", "代謝を上げる", "脂肪を燃やす"],
+    source: "2026年 Wangらのレビュー",
+    answer: "脂肪を燃やして熱に変える褐色脂肪組織は加齢や肥満で働きが鈍くなります。体内の炎症を抑えインスリンの効きを良くする有酸素運動と食事改善のアプローチを組み合わせることが脂肪燃焼スイッチを再起動させる鍵です。"
+  },
+  {
+    keywords: ["カロリー制限", "筋肉減少", "筋肉痛", "回復負債", "コルチゾール", "糖質制限", "頑張ってるのに", "運動してるのに", "逆効果"],
+    source: "研究レビュー・note記事まとめ",
+    answer: "カロリー制限中や痩せ薬使用中は、筋肉量維持のために高タンパク食と筋力トレーニングの併用が必須です。ただし、極端な糖質制限と激しい筋トレの組み合わせは体内の炎症レベルを上げ、コルチゾールを分泌させて脂肪蓄積を促す「回復負債」を招きます。激しい筋肉痛は効果の証ではなく炎症のサインなので、適度な糖質補給と睡眠による回復を最優先にしてください。"
+  },
+  {
+    keywords: ["タンパク質", "アミノ酸", "ロイシン", "筋肉合成", "高タンパク質食", "リバウンド", "摂取量", "消化不良", "腎臓", "プロテイン", "肉", "どれくらい"],
+    source: "2025年 Cruz-Pierardらの分析 / note記事",
+    answer: "筋肉合成を最大化するには1食あたり15g以上のタンパク質（特にロイシン）を確保し筋トレと組み合わせます。ダイエット中の推奨摂取量は体重1kgあたり1.6gから2.0gです。なお『高タンパクは腎臓・肝臓に悪い』とよく言われますが、健康な人ではこの範囲の摂取で臓器を痛める明確な証拠はなく、注意が必要なのは既に腎機能に問題がある場合です。ただし一度にドカ食いしても筋合成に使える量には上限があり、余剰は消化不良やエネルギー過剰につながるため、3食に均等に分け、固形物と一緒に摂ることで吸収効率を高めましょう。"
+  },
+  {
+    keywords: ["断食", "16時間断食", "食事のタイミング", "夕食", "TRE", "時間枠制限食", "BMAL1", "朝型", "分食", "いつ食べる", "夜ご飯", "朝ごはん"],
+    source: "時間栄養学 最新知見",
+    answer: "食事を8時間以内に収める16時間断食では、朝から夕方に食事を終える朝型の方が内臓脂肪減少に優れています。夜20時以降は脂肪をため込むタンパク質（BMAL1）がピークになるため夜食は脂肪蓄積を招きます。起床後2時間以内に朝食をとって代謝スイッチを入れ、夕食が遅くなる場合は夕方に分食して夜間のインスリン急上昇を防ぎましょう。なお、断食の減量効果は「総カロリーが減ったこと」によるものです。"
+  },
+  {
+    keywords: ["代謝適応", "基礎代謝", "ケトジェニック", "超低カロリー", "省エネモード", "停滞期", "代謝低下", "チートデイ", "ダイエットブレイク", "レプチン", "維持カロリー", "炭水化物", "体重が落ちない", "減らない"],
+    source: "note記事・最新メタ分析",
+    answer: "カロリーを減らすと体は命の危険を感じて基礎代謝を下げる「メタボリックアダプテーション（省エネモード）」を起こします。停滞期の原因であるレプチンの低下を防ぐには「ダイエットブレイク」が有効です。3〜4週間の制限後に1〜2週間の休憩期間を設け、体重が変わらない「維持カロリー」まで摂取量を戻します。その際、レプチン分泌を刺激する「炭水化物」でカロリーを増やすことが代謝を戻すスイッチになります。一時的な水分による体重増加は脂肪ではないので焦らず継続してください。"
+  },
+  {
+    keywords: ["カルニチン", "L-カルニチン", "ミトコンドリア", "コエンザイムQ10", "疲労", "お腹", "サプリ", "サプリメント", "脂肪燃焼"],
+    source: "note記事『L-カルニチンは脂肪の運び屋さん』",
+    answer: "L-カルニチンは脂肪酸をミトコンドリアの内部へ運び込む輸送役を担う成分で、脂肪燃焼を助けるサプリとして知られます。コエンザイムQ10やα-リポ酸との併用がすすめられることもあります。ただし過度な期待は禁物で、臨床試験のメタ分析では減量効果は平均1〜2kg程度と穏やかで、体脂肪率の明確な改善は確認されていません。効果が出やすいのは体重過多の人や食事から不足している場合で、あくまで運動・食事管理という土台の上での補助と考えてください。"
+  },
+  {
+    keywords: ["TCA回路", "クエン酸回路", "エネルギーを作る", "微量栄養素", "アルブミン", "酸素", "呼吸", "腹式呼吸", "姿勢", "グリシン酸マグネシウム"],
+    source: "note記事まとめ（TCA回路と微量栄養素）",
+    answer: "TCA回路を回してエネルギーを作るには鉄、ビタミンB群、マグネシウムなどの微量栄養素が不可欠です。マグネシウムは600種類以上の酵素の働きを助け、代謝プロセスに欠かせません（吸収の良いグリシン酸マグネシウムのサプリがおすすめ）。また、腹式呼吸や姿勢改善で酸素をしっかり取り込むことも基礎代謝向上に重要です。タンパク質不足でアルブミンが減るとむくみの原因になるので注意してください。"
+  },
+  {
+    keywords: ["ゼロカロリー", "人工甘味料", "ドーパミン", "甘み依存症", "空腹感", "添加物", "ダイエット食品", "カロリーオフ"],
+    source: "note記事『低カロリー食品の落とし穴』",
+    answer: "人工甘味料を使ったゼロカロリー食品は、脳がエネルギーを得たと誤認して食欲や甘み依存につながる可能性が指摘されています。ただしインスリン反応・インスリン抵抗性・腸内細菌への影響については研究で賛否が分かれ、まだ結論は出ていません。一方でWHOは2023年、体重管理の目的で人工甘味料を常用しないよう勧告しており（長期的な減量効果が確認できず、むしろ害の可能性も示唆）、少なくとも『甘味料に置き換えれば痩せる』とは言えません。低カロリー食品を選ぶ際は、豆腐やゆで卵などタンパク質や栄養価が豊富なものを選び、人工甘味料はご褒美としてたまに楽しむ程度に留めるのが無難です。"
+  },
+  {
+    keywords: ["ラーメン", "飲み会", "お酒", "アルコール", "塩分", "シメ", "深夜"],
+    source: "note記事『飲み会の後のラーメン』",
+    answer: "お酒を飲んだ後にラーメンが食べたくなるのは、アルコール分解で血糖値が下がり脳がエネルギーを欲し、利尿作用で失われた塩分と水分をスープで補おうとする生理学的な理由です。お酒の合間にこまめに水を飲んで脱水を防ぎ、シメは温かいお茶や味噌汁に置き換えるか翌日に持ち越すのがおすすめです。"
+  },
+  {
+    keywords: ["食べ過ぎ", "睡眠不足", "ストレス", "超加工食品", "意志が弱い", "報酬系", "エモーショナルイーティング", "飢餓", "防衛システム", "食欲", "止まらない", "甘いもの", "過食", "ドカ食い"],
+    source: "note記事『食べすぎるのは、意志が弱いから？』",
+    answer: "食欲が止まらないのは意志の弱さではなく、体を守る防衛システムの暴走やホルモンの影響です。ストレス（コルチゾール増）や睡眠不足は食欲を増進させます。また、極端な食事制限は体を飢餓状態と錯覚させ食欲を暴走させます。感情と食欲を切り離し、脂肪と糖の組み合わせを避け、しっかり睡眠をとることで「痩せやすい脳」を育てましょう。"
+  },
+  {
+    keywords: ["腸内環境", "便秘", "善玉菌", "発酵食品", "オリゴ糖", "整えたい", "お腹の調子"],
+    source: "note記事『食べ過ぎじゃないのに太る4つの理由』",
+    answer: "腸内環境を整えることは代謝アップに直結します。腸内環境が悪化すると代謝エネルギーの低下を招くため、発酵食品（ヨーグルト・納豆・キムチ）や水溶性食物繊維（オーツ麦・バナナ・アボカド）、オリゴ糖を含む食品（玉ねぎ・ごぼう）を意識して摂り、生活習慣全体を整えることが結果的に最も早いダイエットになります。"
+  },
+  {
+    keywords: ["食物繊維", "水溶性", "不溶性", "満腹感", "オートミール", "野菜"],
+    source: "note記事『食物繊維を食べて痩せる！』",
+    answer: "食物繊維を増やすだけで自然と食事量が減り体重が減少します。水分を吸って物理的な満腹感を与えるだけでなく、腸内細菌が発酵させて満腹ホルモンを分泌させ、糖の吸収を緩やかにして血糖値の急上昇を防ぐからです。1日30gを目指し、食事の最初に野菜や海藻を食べたり、白米を玄米やオートミールに置き換えるのがおすすめです。"
+  },
+  {
+    keywords: ["痩せる人", "習慣", "姿勢", "腹八分目", "日常", "メンタル", "マインド"],
+    source: "note記事『痩せる人に共通する習慣』",
+    answer: "痩せる人に共通するのは日常の小さな習慣です。歩くなどのちょこっと運動や姿勢を整えることで代謝が上がります。食べすぎても落ち込まず完璧を求めない心の軽さも大切です。食事は限界まで食べるのではなく、味に満足できたかでスッと箸を置く腹八分目を意識すると自然と食べる量が減っていきます。"
+  },
+  {
+    keywords: ["水ダイエット", "水を飲む", "水分", "水分補給", "硬水", "軟水", "白湯", "脱水", "2リットル", "3リットル", "喉が渇く", "マイボトル"],
+    source: "note記事『水ダイエットの効果的な方法』",
+    answer: "水そのものが脂肪を燃やすわけではありませんが、食事前に水を飲むと食べ過ぎを抑えられ（摂取カロリーが減ることが複数の試験で確認）、水分補給は便秘やだるさの改善に役立ちます（※『飲むだけで体脂肪が2％減る』といった数値は確実な裏づけはありません）。目安は1日2リットル前後、夏や乾燥する冬、汗をかく人は多めに（極端な大量摂取はかえって負担になるので不要です）。起床時・食事前・運動後などに分けて飲みましょう。冷たい水をがぶ飲みしてお腹が冷えやすい人は常温や白湯が飲みやすいです。ミネラルの多い硬水は好みで選んでよいですが、マグネシウムを多く摂る食事のときは軟水にしないとお腹を下すことがあります。喉の渇きは体内の水分が失われ始めたサインなので我慢しないでください。"
+  },
+  {
+    keywords: ["コーヒー", "カフェイン", "デカフェ", "利尿作用", "コーヒー好き", "マグネシウム排出"],
+    source: "note記事『コーヒーがマグネシウムを排出』",
+    answer: "コーヒーに含まれるカフェインには利尿作用があり、尿中へのマグネシウムなどミネラル排出をやや増やします。ただし1日数杯程度の適量なら影響は大きくなく、コーヒー自体にもマグネシウムは含まれるので、過度に心配する必要はありません（何杯も飲む人や、もともとマグネシウムが不足しがちな人は要注意）。マグネシウムはエネルギー生成や筋肉の維持、神経伝達に不可欠です。たくさん飲む方は、デカフェを選ぶ・量を控える・ほうれん草やナッツ、豆類、全粒穀物などマグネシウムが豊富な食品で補う、といった工夫をしましょう。"
+  },
+  {
+    keywords: ["むくみ", "浮腫", "顔がむくむ", "足がむくむ", "パンパン", "カリウム", "ビタミンB6", "PMS", "生理前"],
+    source: "note記事『むくみを解消する栄養素』",
+    answer: "むくみは体に余分な水分がたまる症状で、女性はホルモンの影響で起きやすいです。解消に効く栄養素は主に4つ。①マグネシウム（水分バランスを整え、1日200mgでPMSのむくみ軽減の報告あり／アーモンド・ほうれん草）②ビタミンB6（マグネシウムの吸収を助け、不足するとナトリウム排泄が減り水がたまる／鶏肉・バナナ）③カリウム（ナトリウムとのバランスを取る／バナナ・アボカド・ほうれん草）④タンパク質（不足すると血中アルブミンが減り水を保てずむくむ）。加えてアルコールと精製糖の摂りすぎもむくみの原因になります。"
+  },
+  {
+    keywords: ["おにぎり", "冷や飯", "冷ましたご飯", "レジスタントスターチ", "難消化性でんぷん", "白米", "お米", "ご飯", "ササニシキ"],
+    source: "note記事『おにぎりがダイエットフードになる理由（第114回）』",
+    answer: "炊きたてより冷ましたご飯（冷や飯）の方がダイエット向きです。冷ますと『レジスタントスターチ（難消化性でんぷん）』が増え、室温1時間で約1.6倍、冷蔵24時間で約1.8倍になり、温め直しても効果は持続します。これは食物繊維のように大腸まで届いて腸内細菌のエサになり、腸内環境を整えます。お弁当やおにぎりは自然に冷めていて理想的で、梅干し・おかか・昆布などの具材でさらに好バランスに。ササニシキ系はコシヒカリよりレジスタントスターチが多めです。『炭水化物＝太る』ではなく、量と食べ方次第で働きは変わります。"
+  },
+  {
+    keywords: ["脂肪肝", "隠れ脂肪肝", "肝機能", "極端なダイエット", "飢餓状態", "ファスティング"],
+    source: "note記事『ダイエットで隠れ脂肪肝になる理由』",
+    answer: "脂肪肝は太った人だけでなく痩せ型の人にも多く（ある調査では脂肪肝の女性の54％が痩せ型）、極端なカロリー制限・断食・長期の糖質制限が原因で起きる『隠れ脂肪肝』が増えています。食べる量を極端に減らすと体が飢餓状態と勘違いし、脂肪細胞や筋肉からエネルギーを放出して血中脂質が増え、肝臓に脂肪が蓄積します。慢性炎症からインスリン抵抗性や糖尿病のリスクも高まります。糖質制限やファスティングは自己流ではなく専門家の指導のもと、栄養バランスを保って行うことが大切です。"
+  },
+  {
+    keywords: ["鉄不足", "鉄分", "フェリチン", "ヘモグロビン", "貧血", "冷え性", "鉄の再利用", "銅"],
+    source: "note記事『鉄不足がダイエットの原因かも』",
+    answer: "『痩せにくい・すぐ疲れる・冷える』は鉄不足のサインかもしれません。鉄は脂肪燃焼・代謝・エネルギー生産に関わり、不足するとミトコンドリアでのエネルギー産生が落ち、筋肉に酸素が届かず、自律神経も乱れて過食や甘いもの欲求が強まります。鉄は体内で90％以上が再利用されており、銅やビタミンA・B12が不足すると再利用システムが回らず貧血になります。吸収を高めるにはビタミンC（レモン・ピーマン・キウイ）と一緒に摂ると非ヘム鉄の吸収が約4倍に。赤身肉・魚・卵のヘム鉄もおすすめです。"
+  },
+  {
+    keywords: ["乳酸菌", "ガセリ菌", "ビフィズス菌", "腸内フローラ", "善玉菌", "ぬか漬け", "キムチ", "腸内革命"],
+    source: "note記事『乳酸菌は脂肪を燃やす』",
+    answer: "腸内環境が乱れると代謝や便通に影響し、整えると体調が安定して痩せやすい土台になります。乳酸菌には①肝臓での脂肪合成を抑える（ラクトバチルス・ガセリで12週間に内臓脂肪が平均4.6％減ったとする報告あり）②善玉菌を増やし腸内フローラを整える、といった働きが報告されています。ただしプロバイオティクスの減量効果は菌株によって差が大きく、効果量は穏やかで個人差もあります（『乳酸菌を摂れば必ず痩せる』ものではありません）。ヨーグルト・キムチ・ぬか漬けなどの発酵食品を、ゴボウ・バナナなどエサになる食物繊維（プレバイオティクス）と一緒に、食事・運動の土台の上で毎日コツコツ続けるのがコツです。"
+  },
+  {
+    keywords: ["隠れ栄養失調", "栄養失調", "痩せすぎ", "低体重", "若年女性", "カルシウム", "ビタミンD", "骨密度", "抜け毛"],
+    source: "note記事『若年女性の隠れ栄養失調にご注意を』",
+    answer: "見た目は健康そうでも体内の栄養バランスが崩れた『隠れ栄養失調』が若年女性に増えています。過度なカロリー制限・栄養の偏り・自己流ダイエットが原因で、肌荒れ・抜け毛・慢性疲労、ひどいと骨密度低下や免疫低下を招きます。特に女性は鉄・カルシウム・ビタミンDが不足しがちで、貧血や骨粗しょう症のリスクに。将来の妊娠や次世代にも影響しうるため、極端な制限をやめ、タンパク質・ビタミン・ミネラルをバランスよく摂って『食べながら痩せる』ことが大切です。"
+  },
+  {
+    keywords: ["ビタミンB", "ビタミンB群", "B1", "B2", "B12", "吹き出物", "ニキビ", "口内炎", "肌荒れ", "エネルギーにならない"],
+    source: "note記事『それ、ビタミンB不足かもしれません』",
+    answer: "吹き出物・ニキビ・口内炎ができやすい、運動しても痩せないのはビタミンB群不足のサインかもしれません。B群（B1・B2・B6・B12・ナイアシンなど8種）は糖質・脂質・タンパク質をエネルギーに変える代謝の主役で、不足すると『食べてもエネルギーにならず代謝が落ちる』状態に。B1不足は疲れ・イライラ、B2不足はニキビ・肌荒れ、B6はPMS軽減に関与します。水溶性で体に貯められないため毎日こまめに。納豆＋卵かけご飯（玄米）、豚の生姜焼き＋ブロッコリー、鮭＋しじみ味噌汁などがおすすめです。"
+  },
+  {
+    keywords: ["サプリの組み合わせ", "組み合わせ", "チーム", "3点セット", "コエンザイムQ10", "オメガ3", "脂肪燃焼サプリ"],
+    source: "note記事『脂肪を燃やす体になるサプリ3点セット』",
+    answer: "サプリは単体でなく目的別の『チーム』で考えると理解しやすいです。脂肪をエネルギーに使う流れには、L-カルニチン（脂肪酸をミトコンドリアへ運ぶ）＋コエンザイムQ10（エネルギーに変換）＋鉄（酸素を運ぶ）が関わります。ただし、これらのサプリの脂肪燃焼効果は、もともと不足している人以外では限定的で、飲めば痩せる魔法ではありません。特に鉄は貧血・鉄不足のときに有効な一方、過剰摂取はかえって害になるため、まず食事を整え、サプリの要否は血液検査（フェリチン等）で確認するのが安全です。メンタル面ではマグネシウム＋ビタミンB群＋オメガ3脂肪酸（EPA・DHA）が神経伝達物質の材料として役立つとされます。"
+  },
+  {
+    keywords: ["咀嚼", "噛む", "よく噛む", "早食い", "胃酸", "消化酵素", "満足感"],
+    source: "note記事『噛むことがもたらす効果』",
+    answer: "よく噛むことはダイエット成功のカギです。咀嚼で食物が細かくなると胃酸や消化酵素と混ざる表面積が増えて消化・栄養吸収が良くなり、食事時間が長くなることで脳に満足感が伝わり食べ過ぎを防げます。噛む刺激は胃酸分泌や胃の運動を促すシグナルにもなります。さらにゆっくり噛むとリラックス効果があり、小学5年生の実験でもよく噛む子はストレスが少なかったと報告されています。早食いをやめ、食事をゆっくり味わいましょう。"
+  },
+  {
+    keywords: ["内臓脂肪", "皮下脂肪", "ぽっこりお腹", "下腹", "腹筋だけ", "心拍数", "脂質異常"],
+    source: "note記事『内臓脂肪の減らし方』",
+    answer: "見た目が痩せていても内臓脂肪がたまっている人は多く、糖尿病・高血圧・脂質異常の引き金になります。内臓脂肪は硬めでつまめず上腹部が前に出るのが特徴で、食べすぎ・運動不足・睡眠不足・ストレスに敏感に反応します。腹筋だけ・軽い運動・週1回では落ちません。ポイントは全身をしっかり動かして心拍数と呼吸を上げること。これで脂肪分解ホルモン（アドレナリン・成長ホルモン）が出て内臓脂肪から先に減ります。なお筋肉が1kg増えても基礎代謝は1日約13〜15kcalしか増えないので『筋トレ＝基礎代謝で痩せる』は過大評価です。"
+  },
+  {
+    keywords: ["孤食", "一人で食べる", "共食", "誰かと食べる", "オキシトシン", "満たされない"],
+    source: "note記事『一人で食べると太りやすいは本当だった（第110回）』",
+    answer: "『一人で食べると太りやすい』傾向は、複数の研究で関連が指摘されています（因果というより相関ですが、無視できない要素です）。人類は仲間と食べる『共食』を前提に進化しており、会話やアイコンタクト、一緒に噛むことでオキシトシンやエンドルフィンが分泌され満足感が生まれます。一方、進化的に想定外の『孤食』では脳がストレスを感じ、食べても満たされずコルチゾール上昇・食欲ホルモン（レプチン・グレリン）の乱れ・早食い過食につながります。日本は共食が週平均3.7回と世界142カ国中133位の孤食大国。できるだけ誰かと食卓を囲むことが食べ過ぎ防止とメンタル安定になります。"
+  },
+  {
+    keywords: ["カロリー計算", "計算アプリ", "記録", "数字とにらめっこ", "誤差", "ザル"],
+    source: "note記事『カロリー計算が無駄な理由』",
+    answer: "カロリー計算に縛られても痩せない理由は主に2つ。①代謝適応：CALERIE2試験では25％のカロリー制限を2年続けると体重は約13％減る一方、体重減で説明できる以上に睡眠時のエネルギー消費が落ち、体が『省エネモード』になりました。②計算自体がザル：2025年の検証でAIカロリー計算アプリの精度は平均60〜80％、カレーや炒め物など複雑な料理では62％まで低下し4割近い誤差が出ます。数字とにらめっこするより、食事の質と満足感を整える方が現実的です。"
+  },
+  {
+    keywords: ["サラダ", "ドレッシング", "トッピング", "野菜だけ", "スムージー", "果糖", "にんじん"],
+    source: "note記事『サラダを食べても痩せない』",
+    answer: "『サラダを食べれば痩せる』は落とし穴です。①野菜にも糖質があり、品種改良でトマトやにんじんは甘く果糖が増加、かぼちゃ・とうもろこし・さつまいもは糖質過多になりがち。②サラダだけだとタンパク質不足で筋肉が減り基礎代謝が落ちて痩せにくくなる（鶏むね・ゆで卵・サーモン・豆腐を足す）。③シーザードレッシング大さじ1で約80kcal、マヨ約100kcal、ナッツ30gで約200kcalとトッピングでカロリーオーバー。オリーブオイルは小さじ1、ナッツは少量に。スムージーも糖質過多になりやすいので注意です。"
+  },
+  {
+    keywords: ["食後の眠気", "眠気", "集中力", "血糖値スパイク", "だるい", "食べすぎ眠い", "パフォーマンス"],
+    source: "note記事『お腹いっぱいが集中力を奪っているかも』",
+    answer: "食後に眠くなり集中力が落ちるのは意志の弱さではなく生理的に正しい反応です。糖質や脂質を一度に多く摂ると血糖値が急上昇し、インスリンが出すぎて今度は下がりすぎる『血糖値スパイク』が起き、脳がエネルギー不足になって強い眠気・イライラ・甘いもの欲求が出ます。また脳（安静時でも全エネルギーの20〜25％を消費）と消化は同時にフル稼働できず、食後は消化が優先されます。だからこそ『腹八分目』で止めると午後のパフォーマンスが安定し、眠くならず頭がスッキリ働きます。"
+  },
+  {
+    keywords: ["気圧", "雨の日", "台風", "天気痛", "頭痛", "片頭痛", "気圧頭痛"],
+    source: "note記事『雨の日に頭がズキズキ、甘いものが食べたくなる』",
+    answer: "雨や台風の前に頭痛・だるさが出るのは気圧のせいです。気圧が下がると自律神経（交感・副交感）のバランスが崩れて血管が拡張し、内耳も刺激されてズキズキした片頭痛やめまいが起きます。また外圧が下がって血圧が下がると、体は糖を摂って血糖値を上げ交感神経を刺激しようとするため甘いものが欲しくなります（セロトニン減少も一因）。ただし甘いものを食べても頭痛は治りません。対処は①首を温めて血流を整える②カフェインを1杯だけ摂る（血管収縮）③深呼吸と耳のマッサージ。アプリで気圧を予測し早めに備えるのが最強です。"
+  },
+  {
+    keywords: ["コレステロール", "LDL", "HDL", "悪玉", "善玉", "動脈硬化"],
+    source: "note記事『悪玉コレステロールにも役割がある』",
+    answer: "LDL（悪玉）はコレステロールを細胞に届ける運び屋で、細胞膜やホルモンの材料になる大切な成分。だから『ゼロにすればいい』ものではありません。ただし誤解しないでほしいのは、LDLが高い状態が長く続くと動脈硬化・心筋梗塞・脳卒中のリスクが上がることは、遺伝子研究や大規模臨床試験で一貫して示された確立した事実だという点です（欧州動脈硬化学会の合意声明ほか）。『高くても気にしなくていい』という意味ではありません。特に酸化した小さく密度の高いLDLは、炎症・ストレス・糖質過多と重なると血管に負担をかけます。HDL（回収役）だけ増やせばよいわけでもなく両者はチーム。脂質だけでなく糖質の摂りすぎもLDLを上げることがあります。数値が高い場合は自己判断せず医師に相談し、食事・運動を含めて総合的に見直しましょう。"
+  },
+  {
+    keywords: ["肥満ウイルス", "アデノウイルス", "レスベラトロール", "赤ワイン", "睡眠不足", "第3の要因", "化学物質"],
+    source: "note記事『隠れ肥満の真犯人を暴いてみた』",
+    answer: "食べすぎ・運動不足以外にも太る原因があります。①アデノウイルス36（Ad-36）：脂肪細胞に入り糖や脂肪をため込みやすくする風邪ウイルスで、肥満者の3人に1人が感染との報告も（因果関係はまだ相関段階）。対策として桑の実・赤ワイン・ピーナッツに含まれるレスベラトロールがウイルス抑制・抗炎症に働きます。②睡眠不足：5時間未満だと空腹ホルモン・グレリンが増え満腹ホルモン・レプチンが減り太りやすくなります。③プラスチックの化学物質なども指摘されています。"
+  },
+  {
+    keywords: ["スポーツドリンク", "スポドリ", "果糖ぶどう糖液糖", "清涼飲料", "ジュース", "麦茶", "炭酸水", "熱中症"],
+    source: "note記事『そのスポーツドリンク、飲みすぎると太るかも』",
+    answer: "夏でもスポーツドリンクの飲みすぎは太ります。市販品は角砂糖6〜8個分の糖分を含み、コーラと大差ありません。使われる果糖ぶどう糖液糖（HFCS）は脂肪に変わりやすく、インスリンの働きを悪くして（インスリン抵抗性）痩せにくくします。無糖タイプも人工甘味料の別の問題あり。おすすめは①水（常温〜少し冷たい）②麦茶・ルイボスティー（ノンカフェインでミネラル）③無糖の炭酸水（レモンを絞ると満足感アップ）。果物の糖は繊維やビタミンと摂れるのでOKですが、ジュースやスムージーでなくそのまま食べましょう。"
+  },
+  {
+    keywords: ["パン", "小麦", "グルテン", "WGA", "レクチン", "リーキーガット", "麺類", "全粒粉"],
+    source: "note記事『太らないパンの食べ方』",
+    answer: "パンで太りやすくなる主な理由は、精製された小麦は消化吸収が速く血糖値を上げやすいため、余った糖が脂肪になりやすい点です。よく語られる『WGA（レクチン）が腸に穴をあけ（リーキーガット）炎症や肥満を招く』『アミロペクチンAが特別に太らせる』といった説は、WGAの多くが加熱や消化で失われることもあり、健康な人では科学的にまだ確立していません（いわゆる『小麦は毒』系の主張で、賛否が分かれます）。むしろ大規模研究では、全粒穀物をよく摂る人ほど体重・心疾患・糖尿病のリスクが低い傾向が示されています。実践としては、精製パンや菓子パンの食べ過ぎを避け、全粒粉やライ麦など噛み応えがあり血糖値が上がりにくいものを、よく噛んで適量食べるのがおすすめです。"
+  },
+  {
+    keywords: ["GLP-1", "痩せ薬", "セマグルチド", "チルゼパチド", "ウゴービ", "マンジャロ", "ゼップバウンド", "オゼンピック", "ダイエット注射", "リベルサス"],
+    source: "最新研究（SURMOUNT-5・STEP試験ほか）",
+    answer: "GLP-1受容体作動薬（セマグルチド＝ウゴービ／チルゼパチド＝ゼップバウンド等）は食欲を抑えて大きな減量効果があり、2025年の直接比較試験SURMOUNT-5では72週でチルゼパチド約20％、セマグルチド約14％の減量が報告されています。ただし注意点として、減った体重の約25％は筋肉（除脂肪量）です。これは他の減量法と同程度の割合ですが、筋肉を守るために高タンパク食（体重1kgあたり1.6〜2.0g）と筋力トレーニングの併用が重要です。吐き気などの副作用や中止後のリバウンドもあるため、必ず医師の管理下で使い、食事・運動・睡眠という土台と組み合わせてください。"
+  },
+  {
+    keywords: ["超加工食品", "加工食品", "UPF", "スナック菓子", "菓子パン", "インスタント", "コンビニ食", "ジャンクフード"],
+    source: "最新研究（Hall 2019 NIH入院RCTほか）",
+    answer: "同じカロリー・糖・塩・脂・食物繊維量にそろえても、超加工食品（UPF）中心の食事にすると人は食べ過ぎます。NIHの入院RCT（Hall 2019）では、超加工食を自由に食べた2週間で1日あたり約500kcal多く摂取し体重が約0.9kg増加、未加工食では逆に0.9kg減少しました。2024年の日本の追試でも同様の結果で、咀嚼回数の低下（早食い）も一因とされます。原因は、やわらかく高カロリー密度で早食いになり満腹信号が追いつかないこと。菓子パン・スナック・インスタント等を減らし、素材に近い食品を選ぶことがカロリー計算より効果的です。"
+  },
+  {
+    keywords: ["睡眠時間", "寝不足", "何時間寝る", "何時間", "睡眠と食欲", "夜更かし", "睡眠の質", "よく眠る"],
+    source: "最新研究（Tasali 2022 JAMA Intern Medほか）",
+    answer: "睡眠を削ると食欲が増えて太りやすくなります。JAMA内科(2022, Tasali)のRCTでは、普段6.5時間未満だった人が睡眠を平均1.2時間延ばしただけで、運動もせず1日あたり約270kcal摂取が減りました（続けば約3年で12kg相当）。寝不足は空腹ホルモン・グレリン増、満腹ホルモン・レプチン減、報酬系の活性化で高カロリー食を欲します。まず7〜9時間の睡眠確保を。就寝前のスマホ・カフェイン・アルコールを控え、起床時刻を一定にするのが近道です。"
+  },
+  {
+    keywords: ["筋トレで痩せる", "レジスタンス", "筋力トレーニング", "除脂肪", "筋肉を落とさない", "減量中の運動", "ウェイト"],
+    source: "最新研究（RCT25件のメタ分析ほか）",
+    answer: "ダイエット中は筋肉も一緒に落ちがちですが、筋力トレーニング（レジスタンス運動）を加えると筋肉を守りながら脂肪をより多く落とせます。25件のRCTメタ分析では、食事制限＋筋トレが筋肉量を維持しつつ脂肪減を高めると示され、高齢者では筋肉減少の約9割を防いだ報告も。意外にも、減量中は中〜低強度の筋トレでも十分に筋肉を守れます（強いエネルギー不足下では高強度がかえって回復を妨げることも）。高タンパク食＋週2〜3回の筋トレを土台にしましょう。"
+  },
+  {
+    keywords: ["更年期", "閉経", "エストロゲン", "40代", "50代", "女性ホルモン", "中年太り", "お腹周り"],
+    source: "最新研究レビュー（閉経移行期の体組成変化）",
+    answer: "40〜50代で急にお腹周りが変わるのは意志の問題ではなく、閉経に伴うエストロゲン低下が主因です。エストロゲンは脂肪を下半身（皮下脂肪）に蓄える働きがあり、減るとお腹（内臓脂肪）に脂肪がつきやすくなります。研究では内臓脂肪は閉経前の総体脂肪の5〜8％から閉経後15〜20％へ増加し、筋肉量も低下、エネルギー消費も落ちます。内臓脂肪は糖尿病・心疾患リスクを高めるため、対策は①筋力トレーニングで筋肉維持②タンパク質と食物繊維をしっかり③睡眠とストレス管理。つらい症状は我慢せず医師に相談を。"
+  },
+  {
+    keywords: ["食べる順番", "ベジファースト", "野菜から", "カーボラスト", "食べ順", "血糖値を上げない"],
+    source: "最新研究（食べ順RCT・Diabetes Careほか）",
+    answer: "同じ食事でも食べる順番で血糖値の上がり方が変わります。野菜・タンパク質を先に食べ、炭水化物（ご飯・パン・麺）を最後にすると、複数のRCTで食後血糖のピークやAUCが約50％低下し、満腹ホルモンGLP-1も増えることが示されています。血糖の乱高下が抑えられると、食後の眠気や余分な脂肪蓄積も防ぎやすくなります。『野菜→肉・魚→ご飯』の順を意識し、よく噛んでゆっくり食べるだけの簡単な習慣です（糖尿病・予備軍で特に有効）。"
+  },
+  {
+    keywords: ["サルコペニア", "加齢と筋肉", "歳をとると", "筋肉が落ちる", "高齢", "タンパク質の量が足りない", "フレイル"],
+    source: "最新研究（PROT-AGE／ESPEN提言）",
+    answer: "年齢とともに筋肉は落ちやすくなり（サルコペニア）、同じ量のタンパク質でも筋肉になりにくい『アナボリック抵抗性』が起きます。国際的な提言（PROT-AGE／ESPEN）では、高齢者は体重1kgあたり1.0〜1.2g、病気や強い低栄養があればさらに多く（1.2〜2.0g）を推奨。若い頃の基準（0.8g）では不足しがちです。ポイントは①1食20〜30gを3食に分けて摂る②ロイシンの多い肉・魚・卵・大豆③筋力トレーニングと組み合わせること。筋肉は転倒・寝たきり予防にも直結します。"
+  },
+  {
+    keywords: ["食の多様性", "30種類", "植物", "腸内細菌の多様性", "いろいろ食べる", "バリエーション"],
+    source: "最新研究（American Gut Projectほか）",
+    answer: "腸内環境を整えるうえで、特定の健康食品より『植物性食品の種類の多さ』が効くと分かってきました。世界最大級の腸内細菌研究American Gut Projectでは、週に30種類以上の植物（野菜・果物・豆・全粒穀物・ナッツ・海藻・きのこ・ハーブ等）を食べる人は、10種未満の人より腸内細菌が明らかに多様でした。多様性が高いほど消化・免疫が整い、肥満や糖尿病リスクも低い傾向。『ヴィーガンかどうか』より種類の多さが重要です。少量でも品目を増やす（味噌汁の具を増やす等）意識を持ちましょう。"
+  }
+];
+
+// ================= ユーティリティ =================
+function safeLSget(k){ try{return localStorage.getItem(k);}catch(e){return null;} }
+function safeLSset(k,v){ try{localStorage.setItem(k,v);}catch(e){} }
+function safeLSdel(k){ try{localStorage.removeItem(k);}catch(e){} }
+function escp(s){ return (s||'').toString().replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+// ================= 認証・データ =================
+async function doLogin(){
+  const v = document.getElementById('loginPass').value.trim();
+  const msg = document.getElementById('loginMsg');
+  if(!v){ msg.textContent='合言葉を入力してください'; return; }
+  if(!sb){ msg.textContent='通信の初期化に失敗しました。時間をおいて再度お試しください。'; return; }
+  msg.textContent='読み込み中...';
+  try{
+    const { data, error } = await sb.rpc('na_load', { p: v });
+    if(error) throw error;
+    // 登録済みの合言葉だけログインを許可（未登録・停止中は入れない）
+    if(!data || !data.registered){
+      msg.textContent='この合言葉は登録されていません。購入時にお渡しした合言葉をご確認ください。';
+      return;
+    }
+    PASS = v; safeLSset('na_pass', v);
+    PROFILE = data.profile || {};
+    LOGS    = data.logs || [];
+    HISTORY = data.history || [];
+    const isNew = !(PROFILE && PROFILE.nick);
+    enterApp(isNew);
+  }catch(e){
+    console.error(e);
+    msg.textContent='ログインできませんでした。データベース設定(na_schema.sql)が未適用の可能性があります。';
+  }
+}
+
+function doLogout(){ safeLSdel('na_pass'); location.reload(); }
+
+function enterApp(isNew){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('app').style.display='block';
+  buildFlagChips();
+  fillProfileForm();
+  renderGreet();
+  renderRecord();
+  renderPersonalTip();
+  if(isNew || !PROFILE || !PROFILE.nick){ openTabByName('profile'); }
+}
+
+// ================= プロフィール =================
+function buildFlagChips(){
+  const box=document.getElementById('pfFlags'); box.innerHTML='';
+  FLAG_OPTIONS.forEach(function(f){
+    const wrap=document.createElement('label'); wrap.className='chip';
+    const cb=document.createElement('input'); cb.type='checkbox'; cb.value=f;
+    wrap.appendChild(cb); wrap.appendChild(document.createTextNode(' '+f));
+    box.appendChild(wrap);
+  });
+}
+function fillProfileForm(){
+  document.getElementById('pfNick').value=(PROFILE&&PROFILE.nick)||'';
+  if(PROFILE&&PROFILE.sex) document.getElementById('pfSex').value=PROFILE.sex;
+  if(PROFILE&&PROFILE.age) document.getElementById('pfAge').value=PROFILE.age;
+  if(PROFILE&&PROFILE.goal) document.getElementById('pfGoal').value=PROFILE.goal;
+  document.getElementById('pfNotes').value=(PROFILE&&PROFILE.notes)||'';
+  const flags=(PROFILE&&PROFILE.flags)||[];
+  document.querySelectorAll('#pfFlags input').forEach(function(cb){ cb.checked=flags.indexOf(cb.value)>=0; });
+}
+async function saveProfile(){
+  const flags=[]; document.querySelectorAll('#pfFlags input').forEach(function(cb){ if(cb.checked) flags.push(cb.value); });
+  PROFILE={ nick:document.getElementById('pfNick').value.trim(), sex:document.getElementById('pfSex').value,
+    age:document.getElementById('pfAge').value, goal:document.getElementById('pfGoal').value,
+    flags:flags, notes:document.getElementById('pfNotes').value.trim() };
+  const msg=document.getElementById('profileMsg'); msg.textContent='保存中...';
+  if(PASS && sb){
+    try{ const { error } = await sb.rpc('na_save_profile',{p:PASS,prof:PROFILE}); if(error) throw error; msg.textContent='保存しました ✅'; }
+    catch(e){ console.error(e); msg.textContent='保存に失敗しました'; }
+  }
+  renderGreet(); renderPersonalTip();
+}
+function renderGreet(){
+  const n=(PROFILE&&PROFILE.nick)?(PROFILE.nick+'さん'):'ようこそ';
+  document.getElementById('greet').textContent=n;
+}
+
+// ================= 個別化メモ =================
+function activeFlags(){ return (PROFILE && PROFILE.flags) ? PROFILE.flags : []; }
+function boostKeywordsForUser(){
+  const set=new Set();
+  activeFlags().forEach(function(f){ (FLAG_BOOST[f]||[]).forEach(function(k){ set.add(k); }); });
+  return set;
+}
+function renderPersonalTip(){
+  const tips=activeFlags().map(function(f){ return FLAG_TIP[f]; }).filter(Boolean);
+  const html = tips.length ? ("<strong>あなた向けメモ</strong><ul>"+tips.map(function(t){return "<li>"+t+"</li>";}).join("")+"</ul>") : "";
+  const a=document.getElementById('personalTip'); if(a) a.innerHTML=html;
+  const b=document.getElementById('tipPanel'); if(b) b.innerHTML=html;
+}
+
+// ================= AI相談（個別化つき） =================
+function askPseudoAI(){
+  const input=document.getElementById('customQuestion').value;
+  const res=document.getElementById('questionResult');
+  if(input.trim()===''){ res.style.display='block'; res.innerHTML='質問を入力してください。'; return; }
+  const words=input.replace(/[はがをにでともの！？?]/g,' ').split(/\s+/).filter(function(w){return w.length>0;});
+  const boost=boostKeywordsForUser();
+  let best=null,max=0,bestFlagHit=false;
+  for(const item of knowledgeBase){
+    let s=0;
+    for(const kw of item.keywords){ for(const w of words){ if(w.length<2) continue; if(kw.includes(w)||w.includes(kw)) s+=3; } }
+    for(const w of words){ if(item.answer.includes(w)&&w.length>1) s+=1; }
+    let flagHit=false;
+    if(s>0 && boost.size){ for(const kw of item.keywords){ if(boost.has(kw)){ s+=2; flagHit=true; } } }
+    if(s>max){ max=s; best=item; bestFlagHit=flagHit; }
+  }
+  if(best && max>0){
+    const note = bestFlagHit ? "<div class='pmatch'>🎯 あなたの登録内容にも関わる項目です</div>" : "";
+    res.innerHTML = "<strong>【"+best.source+"からの回答】</strong>"+note+"<br><br>"+best.answer+DISCLAIMER;
+    if(PASS && sb){
+      sb.rpc('na_add_history',{p:PASS,q:input.slice(0,300),src:best.source}).then(function(){},function(){});
+      HISTORY.unshift({question:input.slice(0,300),source:best.source,created_at:new Date().toISOString()});
+    }
+  }else{
+    res.innerHTML = "<strong>【回答】</strong><br><br>該当するデータが見つかりませんでした。短い単語（例：「サプリ」「停滞期」「むくみ」）でお試しください。"+DISCLAIMER;
+  }
+  res.style.display='block';
+}
+
+// ================= 体重記録・分析 =================
+async function analyze(){
+  const nw=parseFloat(document.getElementById('nightWeight').value);
+  const mw=parseFloat(document.getElementById('morningWeight').value);
+  const res=document.getElementById('analysisResult');
+  if(isNaN(nw)||isNaN(mw)){ res.style.display='block'; res.innerHTML='数値を正しく入力してください。'; return; }
+  let text="<strong>【記録しました】</strong><br><br>";
+  if((nw-mw)<0.5){ text+="夜と朝の体重差が小さめです。就寝中の水分代謝が落ちている可能性があり、マグネシウム・カリウム（ほうれん草・わかめ・バナナ）を意識してみましょう。"; }
+  else{ text+="夜と朝の体重差は良好で、水分代謝は問題なさそうです。鉄分・ビタミンB群（豚肉・あさり）でエネルギー代謝を後押ししましょう。"; }
+  if(PASS && sb){
+    try{ const { error } = await sb.rpc('na_add_log',{p:PASS,night:nw,morning:mw}); if(error) throw error;
+      LOGS.unshift({logged_at:new Date().toISOString(),night_kg:nw,morning_kg:mw}); }
+    catch(e){ console.error(e); }
+  }
+  const trend=trendComment();
+  if(trend) text += "<br><br>"+trend;
+  res.innerHTML=text+DISCLAIMER; res.style.display='block';
+  document.getElementById('nightWeight').value=''; document.getElementById('morningWeight').value='';
+  renderRecord();
+}
+function trendComment(){
+  const ms=LOGS.filter(function(l){return l.morning_kg!=null;}).map(function(l){return parseFloat(l.morning_kg);});
+  if(ms.length<2) return "";
+  const diff=ms[0]-ms[1];
+  let c="直近の朝体重 "+ms[0].toFixed(1)+"kg（前回比 "+(diff>=0?"+":"")+diff.toFixed(1)+"kg）。";
+  const recent=ms.slice(0,5);
+  if(recent.length>=4){ const mn=Math.min.apply(null,recent), mx=Math.max.apply(null,recent);
+    if(mx-mn<=0.3){ c+=" ここ数回は横ばいです。停滞期のサインかも。1〜2週間“維持カロリー”に戻す『ダイエットブレイク』も選択肢です（「停滞期」で検索してみてください）。"; } }
+  return c;
+}
+
+// ================= 記録タブ描画 =================
+function renderRecord(){
+  const wt=document.getElementById('weightTrend');
+  const ms=LOGS.filter(function(l){return l.morning_kg!=null;});
+  if(!ms.length){ wt.innerHTML="<p class='muted'>まだ記録がありません。「体重を記録」から入力してください。</p>"; }
+  else{
+    wt.innerHTML = ms.slice(0,12).map(function(l){
+      const d=new Date(l.logged_at); const ds=(d.getMonth()+1)+'/'+d.getDate();
+      const morning=parseFloat(l.morning_kg).toFixed(1);
+      const night=(l.night_kg!=null)?parseFloat(l.night_kg).toFixed(1)+"kg":"-";
+      return "<div class='wrow'><span>"+ds+"</span><span>朝 "+morning+"kg</span><span class='m'>夜 "+night+"</span></div>";
+    }).join("");
+  }
+  const hl=document.getElementById('histList');
+  if(!HISTORY.length){ hl.innerHTML="<p class='muted'>まだ相談履歴はありません。</p>"; }
+  else{
+    hl.innerHTML = HISTORY.slice(0,15).map(function(h){
+      const d=new Date(h.created_at); const ds=(d.getMonth()+1)+'/'+d.getDate();
+      return "<div class='hrow'><div class='q'>"+escp(h.question)+"</div><div class='s'>"+ds+"・"+escp(h.source||'')+"</div></div>";
+    }).join("");
+  }
+}
+
+// ================= タブ切替 =================
+function openTab(evt,name){ openTabByName(name); }
+function openTabByName(name){
+  document.querySelectorAll('.content').forEach(function(c){ c.style.display='none'; c.classList.remove('active'); });
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+  const el=document.getElementById(name); el.style.display='block'; el.classList.add('active');
+  const tab=document.querySelector('.tab[data-tab="'+name+'"]'); if(tab) tab.classList.add('active');
+  if(name==='record'){ renderRecord(); renderPersonalTip(); }
+  if(name==='ai'){ renderPersonalTip(); }
+}
+
+// ================= 自動ログイン =================
+window.addEventListener('DOMContentLoaded', function(){
+  const p=safeLSget('na_pass');
+  if(p){ document.getElementById('loginPass').value=p; doLogin(); }
+});
+</script>
+</body>
+</html>
